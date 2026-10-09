@@ -29,13 +29,11 @@ jobs:
           distribution: temurin
           java-version: "17"
 
-      - name: Setup Android SDK
-        uses: android-actions/setup-android@v3
-
-      - name: Install NDK
+      - name: Locate Android NDK
         run: |
-          sdkmanager "ndk;26.1.10909125"
-          echo "ANDROID_NDK_HOME=$ANDROID_HOME/ndk/26.1.10909125" >> $GITHUB_ENV
+          echo "ANDROID_HOME=$ANDROID_HOME"
+          echo "ANDROID_NDK_HOME=$ANDROID_NDK_HOME"
+          ls $ANDROID_HOME/ndk
 
       - name: Install gomobile
         run: |
