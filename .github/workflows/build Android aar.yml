@@ -3,14 +3,14 @@ name: Build Android AAR
 on:
   push:
     branches: [ "main" ]
-  workflow_dispatch: # 支持在 GitHub 页面手动点击触发编译
+  workflow_dispatch:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
 
     steps:
-      # 1. 检出代码
+      # 1. 检出仓库代码
       - name: Checkout repository
         uses: actions/checkout@v4
 
@@ -20,20 +20,26 @@ jobs:
         with:
           go-version: '1.21'
 
-      # 3. 配置 Java (Android NDK 依赖 Java 环境)
+      # 3. 配置 Java 环境 (Android 编译工具链依赖 Java)
       - name: Set up JDK
         uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
           java-version: '17'
 
-      # 4. 正确配置 Android NDK (使用官方认可的 setup-sdk Action)
-      - name: Setup Android NDK
-        uses: nsetup/setup-sdk@v1
+      # 4. 配置 Android SDK 及 NDK (使用官方认可的 android-actions/setup-android)
+      - name: Setup Android SDK & NDK
+        uses: android-actions/setup-android@v3
         with:
-          ndk-version: '25.2.9519653'
+          cmdline-tools-version: '11.0'
 
-      # 5. 安装 gomobile 并执行编译
+      # 5. 安装指定版本的 NDK
+      - name: Install NDK
+        run: |
+          yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --install "ndk;25.2.9519653"
+          echo "ANDROID_NDK_HOME=$ANDROID_HOME/ndk/25.2.9519653" >> $GITHUB_ENV
+
+      # 6. 安装 gomobile 并执行编译
       - name: Install gomobile and Build AAR
         run: |
           go install golang.org/x/mobile/cmd/gomobile@latest
@@ -41,7 +47,7 @@ jobs:
           go mod download
           gomobile bind -v -target=android/arm64 -androidapi 21 -o libgopeed.aar ./bind
 
-      # 6. 上传生成的 AAR 文件供下载
+      # 7. 上传生成的 AAR 文件
       - name: Upload AAR Artifact
         uses: actions/upload-artifact@v4
         with:
