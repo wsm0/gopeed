@@ -1,51 +1,65 @@
-name: Build Android AAR
+name: Build libgopeed.aar (arm64-v8a)
 
 on:
-  push:
-    branches: [ "main" ]
   workflow_dispatch:
+    inputs:
+      ref:
+        description: "Gopeed 的分支 / tag / commit"
+        default: "main"
+        required: true
 
 jobs:
   build:
     runs-on: ubuntu-latest
-
     steps:
-      # 1. 检出代码
-      - name: Checkout repository
+      - name: Checkout Gopeed
         uses: actions/checkout@v4
+        with:
+          repository: GopeedLab/gopeed
+          ref: ${{ inputs.ref }}
 
-      # 2. 配置 Go 环境
-      - name: Set up Go
+      - name: Setup Go
         uses: actions/setup-go@v5
         with:
-          go-version: '1.24' # 适配最新的 Go 依赖处理方式
+          go-version-file: go.mod
 
-      # 3. 配置 Java
-      - name: Set up JDK
+      - name: Setup Java
         uses: actions/setup-java@v4
         with:
-          distribution: 'temurin'
-          java-version: '17'
+          distribution: temurin
+          java-version: "17"
 
-      # 4. 安装 NDK
-      - name: Install NDK via Preinstalled SDK Manager
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install NDK
         run: |
-          yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --install "ndk;25.2.9519653"
-          echo "ANDROID_NDK_HOME=$ANDROID_HOME/ndk/25.2.9519653" >> $GITHUB_ENV
+          sdkmanager "ndk;26.1.10909125"
+          echo "ANDROID_NDK_HOME=$ANDROID_HOME/ndk/26.1.10909125" >> $GITHUB_ENV
 
-      # 5. 安装 gomobile、添加 -tool 依赖并编译
-      - name: Install gomobile and Build AAR
+      - name: Install gomobile
         run: |
           go install golang.org/x/mobile/cmd/gomobile@latest
-          go get -tool golang.org/x/mobile/cmd/gobind
-          go get golang.org/x/mobile
-          go mod tidy
           gomobile init
-          gomobile bind -v -target=android/arm64 -androidapi 21 -o libgopeed.aar ./bind
 
-      # 6. 上传编译产物
-      - name: Upload AAR Artifact
+      - name: Build aar
+        run: |
+          go get golang.org/x/mobile/bind
+          mkdir -p dist
+          cd bind/mobile
+          gomobile bind \
+            -tags nosqlite \
+            -ldflags="-w -s -checklinkname=0" \
+            -target=android/arm64 \
+            -androidapi 21 \
+            -o ${{ github.workspace }}/dist/libgopeed.aar \
+            github.com/GopeedLab/gopeed/bind/mobile
+
+      - name: Verify
+        run: unzip -l dist/libgopeed.aar | grep jni
+
+      - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: libgopeed-aar
-          path: libgopeed.aar
+          name: libgopeed-arm64-v8a
+          path: dist/libgopeed.aar
