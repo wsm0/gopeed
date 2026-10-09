@@ -18,7 +18,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
-          go-version: '1.21'
+          go-version: '1.24' # 适配最新的 Go 依赖处理方式
 
       # 3. 配置 Java
       - name: Set up JDK
@@ -33,23 +33,17 @@ jobs:
           yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --install "ndk;25.2.9519653"
           echo "ANDROID_NDK_HOME=$ANDROID_HOME/ndk/25.2.9519653" >> $GITHUB_ENV
 
-      # 5. 安装 gomobile、手动拉取 x/mobile 依赖并执行编译
+      # 5. 安装 gomobile、添加 -tool 依赖并编译
       - name: Install gomobile and Build AAR
         run: |
-          # 1) 下载 gomobile 工具
           go install golang.org/x/mobile/cmd/gomobile@latest
-          
-          # 2) 在项目根目录下手动引入 x/mobile 模块（解决 missing golang.org/x/mobile 报错）
+          go get -tool golang.org/x/mobile/cmd/gobind
           go get golang.org/x/mobile
-          
-          # 3) 初始化并整理依赖
-          gomobile init
           go mod tidy
-          
-          # 4) 执行打包 AAR
+          gomobile init
           gomobile bind -v -target=android/arm64 -androidapi 21 -o libgopeed.aar ./bind
 
-      # 6. 上传生成的 AAR 文件
+      # 6. 上传编译产物
       - name: Upload AAR Artifact
         uses: actions/upload-artifact@v4
         with:
